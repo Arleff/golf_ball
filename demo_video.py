@@ -361,12 +361,27 @@ def process_video(input_path, output_path=None, score_threshold=0.3, max_frames=
     return output_path, stats
 
 
+def find_default_video():
+    """Auto-discover a video file in the current directory when --input is omitted."""
+    video_exts = (".mp4", ".avi", ".mov", ".mkv", ".wmv", ".flv", ".webm")
+    candidates = [
+        f for f in os.listdir(".")
+        if os.path.isfile(f)
+        and f.lower().endswith(video_exts)
+        and "_detected" not in f
+    ]
+    if candidates:
+        candidates.sort(key=lambda f: os.path.getmtime(f), reverse=True)
+        return candidates[0]
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Golf Ball Detection & Tracking from Swing Videos"
     )
-    parser.add_argument("--input", "-i", required=True,
-                        help="Path to input video file")
+    parser.add_argument("--input", "-i", default=None,
+                        help="Path to input video file (omit to auto-detect or generate a demo)")
     parser.add_argument("--output", "-o", default=None,
                         help="Path to output video (default: <input>_detected.mp4)")
     parser.add_argument("--threshold", "-t", type=float, default=0.3,
@@ -378,8 +393,18 @@ def main():
 
     args = parser.parse_args()
 
+    input_path = args.input
+    if input_path is None:
+        input_path = find_default_video()
+        if input_path:
+            print(f"未指定 --input，自动发现视频: {input_path}")
+        else:
+            print("未指定 --input，当前目录无视频文件，自动生成测试视频 ...")
+            from create_test_video import create_test_video
+            input_path = create_test_video()
+
     output_path, stats = process_video(
-        args.input,
+        input_path,
         args.output,
         args.threshold,
         args.max_frames,
